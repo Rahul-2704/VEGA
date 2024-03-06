@@ -1,6 +1,12 @@
 import streamlit as st
 import sqlite3
 from passlib.hash import pbkdf2_sha256
+import streamlit as st
+import cv2
+import face_recognition
+import numpy as np
+import os
+import time
 # from home import home
 
 global unique_id
@@ -20,7 +26,9 @@ def new_lecture():
 
         if submit_button:
             # create_table_lecture(1,subject_name,lecture_start,lecture_end,division)
-            st.write(subject_name)
+            st.session_state["submitted"]=True
+            st.experimental_rerun()
+            # st.write(subject_name)
             
             
 def previous_session():
@@ -53,6 +61,100 @@ def create_table():
     
     conn.commit()
     conn.close()
+
+def webcam():
+    # Initialize the webcam
+    video_capture = cv2.VideoCapture(0)
+
+    # Lower the resolution to speed up processing
+    video_capture.set(3, 640)  # Width
+    video_capture.set(4, 480)  # Height
+
+    # Specify the folder where your images are stored
+    images_folder = "C:\\Users\\Aman\\OneDrive\\Desktop\\Database"
+
+    # Initialize lists for face encodings and names
+    known_face_encodings = []
+    known_face_names = []
+
+    # Load each file from the images folder
+    for filename in os.listdir(images_folder):
+        if filename.endswith(".jpg") or filename.endswith(".png"):
+            # Extract the student name from the filename
+            name = os.path.splitext(filename)[0]
+
+            # Load the image file
+            image_path = os.path.join(images_folder, filename)
+            image = face_recognition.load_image_file(image_path)
+
+            # Attempt to extract a single face encoding from each image
+            try:
+                face_encoding = face_recognition.face_encodings(image)[0]
+                # Add the face encoding and name to our lists
+                known_face_encodings.append(face_encoding)
+                known_face_names.append(name)
+            except IndexError:
+                # If no face is found in the image, skip it
+                print(f"No face found in {filename}, skipping.")
+
+    # Display the title
+    st.title("Real-Time Face Recognition")
+
+    # Create a placeholder for the video
+    video_placeholder = st.empty()
+
+    while True:
+        # Grab a single frame of video
+        ret, frame = video_capture.read()
+
+        # Resize frame of video to 1/4 size for faster face recognition processing
+        small_frame = cv2.resize(frame, (0, 0), fx=0.25, fy=0.25)
+
+        # Convert the image from BGR color (which OpenCV uses) to RGB color (which face_recognition uses)
+        rgb_small_frame = small_frame[:, :, ::-1]
+
+        # Find all the faces and face encodings in the current frame of video
+        face_locations = face_recognition.face_locations(rgb_small_frame)
+        face_encodings = face_recognition.face_encodings(rgb_small_frame, face_locations)
+
+        face_names = []
+        for face_encoding in face_encodings:
+            # See if the face is a match for the known face(s)
+            matches = face_recognition.compare_faces(known_face_encodings, face_encoding)
+            name = "Unknown"
+
+            # Use the known face with the smallest distance to the new face
+            face_distances = face_recognition.face_distance(known_face_encodings, face_encoding)
+            best_match_index = np.argmin(face_distances)
+            if matches[best_match_index]:
+                name = known_face_names[best_match_index]
+
+            face_names.append(name)
+
+        # Display the results
+        for (top, right, bottom, left), name in zip(face_locations, face_names):
+            # Scale back up face locations since the frame we detected in was scaled to 1/4 size
+            top *= 4
+            right *= 4
+            bottom *= 4
+            left *= 4
+
+            # Draw a box around the face
+            cv2.rectangle(frame, (left, top), (right, bottom), (0, 255, 0), 2)
+
+            # Draw a label with a name below the face
+            cv2.putText(frame, name, (left + 6, bottom - 6), cv2.FONT_HERSHEY_DUPLEX, 0.5, (255, 255, 255), 1)
+
+        # Display the resulting video stream
+        video_placeholder.image(frame, channels="BGR")
+
+        # Hit 'q' on the keyboard to quit!
+        if cv2.waitKey(1) & 0xFF == ord('q'):
+            break
+
+    # Release handle to the webcam
+    video_capture.release()
+    cv2.destroyAllWindows()
 
 def create_table_lecture(id,subjectName,startTime,endTime,division):
     conn = sqlite3.connect('C:\\Users\\Aman\\VEGA.db')
@@ -123,9 +225,6 @@ def login():
                 if st.success("Login successful!"):
                     st.session_state["loggedin"]=True
                     st.experimental_rerun()
-                # pg=st.sidebar.selectbox("Select a page",["New Session","Previous Session"])
-                # if pg=="New Session":
-                #     new_session()
                 else:
                     st.write("error")
 
@@ -154,6 +253,12 @@ def main():
         home()
     else:
         login()
+    
+    if "submitted" not in st.session_state:
+        st.session_state["submitted"]=False
+        
+    if st.session_state["submitted"]:
+        webcam()
         
 
 if __name__=="__main__":
