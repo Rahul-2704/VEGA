@@ -19,8 +19,9 @@ def new_lecture():
         submit_button = st.form_submit_button("Submit")
 
         if submit_button:
-            create_table_lecture(1,subject_name,lecture_start,lecture_end,division)
-            st.write("$subject_name")
+            # create_table_lecture(1,subject_name,lecture_start,lecture_end,division)
+            st.write(subject_name)
+            
             
 def previous_session():
     st.write("New session")
