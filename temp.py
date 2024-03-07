@@ -6,6 +6,7 @@ import face_recognition
 import numpy as np
 import os
 import uuid
+import time
 from gtts import gTTS
 import os
 import pygame
@@ -14,7 +15,10 @@ import numpy as np
 from audio_recorder_streamlit import audio_recorder
 
 # Assuming the other functions (create_table, create_table_lecture, username_exists, register_user, authenticate_user) remain unchanged
-
+total_time = 0
+global_lecture_end = 0
+global_lecture_start = 0
+global_lecture_id = 0
 # Simplified state management for login and form submission
 def main():
     # Initialize session state variables if they don't exist
@@ -31,7 +35,7 @@ def main():
             webcam()  # Show the webcam page after form submission
     else:
         login()  # Show the login page if not logged in
-lecture_id = int(uuid.uuid4())
+
 def new_lecture():
     st.title("Lecture Form")
     with st.form("User Information Form"):
@@ -39,9 +43,14 @@ def new_lecture():
         st.header("Enter Lecture Details")
         subject_name = st.text_input("Enter Subject Name")
         lecture_start = st.time_input("Enter Lecture Start time")
+        lecture_start = lecture_start.strftime("%H:%M:%S")
+        global global_lecture_start,global_lecture_end
+        global_lecture_start = lecture_start
         lecture_end = st.time_input("Enter Lecture End Time")
+        lecture_end = lecture_end.strftime("%H:%M:%S")
+        global_lecture_end = lecture_end
         division = st.selectbox("Enter Division", ["COMPSA", "COMPSB", "AIML", "DS", "EXTC-E", "ETRX-F"], placeholder="Select a Division")
-
+        type(division)
         # Form submission
         submit_button = st.form_submit_button("Submit")
 
@@ -51,8 +60,16 @@ def new_lecture():
             # You might want to save the form data to a database or perform some action here
             conn = sqlite3.connect('C:\\Users\\omkar\\Downloads\\VEGA.db')
             cursor = conn.cursor()
-            cursor.execute("INSERT INTO lecture(lectureId,subjectName,startTime,endTime,division) VALUES(?,?,?,?,?)",
-            (lecture_id,subject_name,lecture_start,lecture_end,division))
+            cursor.execute("INSERT INTO lecture(subjectName,startTime,endTime,division) VALUES(?,?,?,?)",
+            (subject_name,lecture_start,lecture_end,division))
+
+            lecture_id=cursor.execute("""SELECT lectureId FROM lecture
+                                    ORDER BY lectureId DESC
+                                    LIMIT 1""")
+            global global_lecture_id
+            global_lecture_id = lecture_id
+            conn.commit()
+            conn.close()
             # Rerun the app to reflect changes in the state
             st.experimental_rerun()
 
@@ -97,6 +114,7 @@ def audio_verification(upload_audio_path, stored_audio_path='omkar.wav'):
         return f'User authentication failed (r = {r:.4f})'
 
 def webcam():
+    start = time.time()
     face_verified = False
     # Initialize the webcam
     video_capture = cv2.VideoCapture(0)
@@ -164,7 +182,7 @@ def webcam():
             if matches[best_match_index]:
                 face_verified = True
                 name = known_face_names[best_match_index]
-
+                print(name)
             face_names.append(name)
 
         # Display the results
@@ -185,7 +203,7 @@ def webcam():
         video_placeholder.image(frame, channels="BGR")
         if face_verified:
             break
-
+        
         # Hit 'q' on the keyboard to quit!
         #if cv2.waitKey(1) & 0xFF == ord('q'):
         #    break
@@ -195,7 +213,11 @@ def webcam():
     cv2.destroyAllWindows()
     if face_verified:
         st.write("Verification Successful !")
-
+        end = time.time()
+        margin = end - start
+        global total_time,global_lecture_end,global_lecture_start
+        total_time += margin
+        late = (global_lecture_end-global_lecture_start)//2
     #st.title("Audio Authentication")
     # Record audio
         """audio_data = audio_recorder()  # Returns a BytesIO object
@@ -209,6 +231,22 @@ def webcam():
             message = audio_verification("recorded_audio.wav")
             st.write(message)"""
         if st.button("Mark Attendance"):
+            conn = sqlite3.connect('C:\\Users\\omkar\\Downloads\\VEGA.db')
+            cursor = conn.cursor()
+            cursor.execute("select UID from students where Name=?", (name,))
+            result = cursor.fetchone()
+            if result:
+                uid = result[0]
+            # st.write(uid)
+            global global_lecture_id
+            cursor.execute("""select subjects.subjectId FROM lecture
+                            JOIN subjects ON lecture.subjectName = subjects.subjectName;""")
+            res= cursor.fetchone()
+            if res:
+                subjectId = res[0]
+            cursor.execute("insert into attendancerecord(uid,lectureId,subjectId,status) values (?,?,?,?)",(uid,global_lecture_id,subjectId,"present"))
+            conn.commit()
+            conn.close()
             st.experimental_rerun()
     
             
