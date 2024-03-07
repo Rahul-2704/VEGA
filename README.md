@@ -32,3 +32,6 @@ pygame==2.1.2
 librosa==0.8.1
 gtts==2.2.3
 audio_recorder_streamlit==0.1.0
+
+
+Demonstration video link : https://drive.google.com/file/d/1wysrJ4F2j5X3dxpPe8y19y77a2RPXN9a/view?usp=drive_link
