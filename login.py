@@ -274,16 +274,6 @@ def webcam():
         late = (global_lecture_end-global_lecture_start)//2
     #st.title("Audio Authentication")
     # Record audio
-        """audio_data = audio_recorder()  # Returns a BytesIO object
-        
-        if audio_data is not None:
-            # Save recorded audio for comparison
-            with open("recorded_audio.wav", "wb") as f:
-                f.write(audio_data)
-            
-            # Perform audio verification
-            message = audio_verification("recorded_audio.wav")
-            st.write(message)"""
         if st.button("Mark Attendance"):
             conn = sqlite3.connect('C:\\Users\\omkar\\Downloads\\VEGA.db')
             cursor = conn.cursor()
