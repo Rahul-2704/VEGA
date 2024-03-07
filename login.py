@@ -364,7 +364,8 @@ def authenticate_user(username, password):
 create_table()
 
 def login():
-    login_or_register = st.radio("Select an option:", ("Login", "Register"))
+    # login_or_register = st.radio("Select an option:", ("Login", "Register"))
+    login_or_register = "Login"
     if login_or_register == "Login":
         st.header("Login")
         username_login = st.text_input("Username:")
